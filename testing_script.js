@@ -1,13 +1,5 @@
-// TODO: this can be removed
-// Decrypts an AES-encrypted string using CryptoJS
-// secretKey: The password/key used to decrypt (usually "RyoSecretKey")
-// ciphertext: The encrypted string (base64 encoded)
-// Returns: The decrypted plaintext as a UTF-8 string
-// Plain URL bases and default link texts (decrypted)
-
-
-
-// TODO: replace these constant reading with reading values from the dataset shared common
+// Plain URL bases and default link texts
+// TODO: replace these constants with reading values from the shared Mode dataset
 
 const URLS = {
   DRIVER_VIEWER: "https://app.mode.com/lyft/reports/b504c0f33d20",
@@ -156,7 +148,7 @@ function getElem(tagName, innerHTML, cssClasses) {
   return ((element.innerHTML = innerHTML), element.classList.add(...cssClasses), element);
 }
 
-// Generates a clickable link to the DriverViewer report (regular version, not embedded)
+// Generates a clickable link to the DriverViewer report
 // secretKey: Encryption key (usually "RyoSecretKey")
 // driverId: The driver's Lyft ID
 // dateStart: Start date filter (YYYY-MM-DD format)
@@ -165,6 +157,8 @@ function getElem(tagName, innerHTML, cssClasses) {
 // timeEnd: End time filter (HH:mm format, optional)
 // experiment: Experiment ID filter (optional)
 // linkText: Text to display in the link (defaults to "DriverViewer" if not provided)
+// isEmbeddedLink: If true, generates an embedded link with max_age parameter (defaults to false)
+// embedId: Max age for embed cache (defaults to 999999999, only used if isEmbeddedLink is true)
 // Returns: HTML anchor tag with link to DriverViewer report
 function getDriverViewerLink(
   secretKey,
@@ -174,36 +168,14 @@ function getDriverViewerLink(
   dateEnd,
   timeEnd,
   experiment,
-  linkText = LINK_TEXT.DRIVER_VIEWER
-) {
-  let url = `${URLS.DRIVER_VIEWER}?`;
-  url += `param_driver_id=${driverId}`;
-  url += `&param_date_start=${dateStart}`;
-  url += `&param_time_start=${timeStart || ""}`;
-  url += `&param_date_end=${dateEnd || ""}`;
-  url += `&param_time_end=${timeEnd || ""}`;
-  url += `&param_experiment=${experiment || ""}`;
-
-  return buildLinkTag(url, linkText || LINK_TEXT.DRIVER_VIEWER);
-}
-
-// Generates a clickable link to the DriverViewer report (embedded version)
-// Same parameters as getDriverViewerLink, plus:
-// embedId: Max age for embed cache (defaults to 999999999 = very long cache)
-// Returns: HTML anchor tag with embedded link to DriverViewer report
-function getDriverViewerLinkEmbed(
-  secretKey,
-  driverId,
-  dateStart,
-  timeStart,
-  dateEnd,
-  timeEnd,
-  experiment,
   linkText = LINK_TEXT.DRIVER_VIEWER,
+  isEmbeddedLink = false,
   embedId = 999999999
 ) {
   const maxAge = embedId || 999999999;
-  let url = `${URLS.DRIVER_VIEWER}/embed?max_age=${maxAge}&`;
+  let url = isEmbeddedLink
+    ? `${URLS.DRIVER_VIEWER}/embed?max_age=${maxAge}&`
+    : `${URLS.DRIVER_VIEWER}?`;
   url += `param_driver_id=${driverId}`;
   url += `&param_date_start=${dateStart}`;
   url += `&param_time_start=${timeStart || ""}`;
@@ -214,13 +186,15 @@ function getDriverViewerLinkEmbed(
   return buildLinkTag(url, linkText || LINK_TEXT.DRIVER_VIEWER);
 }
 
-// Generates a clickable link to the RideViewer report (regular version)
+// Generates a clickable link to the RideViewer report
 // secretKey: Encryption key
 // rideId: The ride's ID
 // scheduledRideId: The scheduled ride ID (if it was pre-scheduled, optional)
 // dateRequested: When the ride was requested (YYYY-MM-DD format)
 // dateScrCreated: When the scheduled ride was created (YYYY-MM-DD format, optional)
 // linkText: Text to display (defaults to "RideViewer")
+// isEmbeddedLink: If true, generates an embedded link with max_age parameter (defaults to false)
+// embedId: Max age for embed cache (defaults to 999999999, only used if isEmbeddedLink is true)
 // Returns: HTML anchor tag linking to RideViewer report
 function getRideViewerLink(
   secretKey,
@@ -228,31 +202,14 @@ function getRideViewerLink(
   scheduledRideId,
   dateRequested,
   dateScrCreated,
-  linkText = LINK_TEXT.RIDE_VIEWER
-) {
-  let url = `${URLS.RIDE_VIEWER}?`;
-  url += `param_ride_id=${rideId || ""}`;
-  url += `&param_scheduled_ride_id=${scheduledRideId || ""}`;
-  url += `&param_date_requested=${dateRequested || ""}`;
-  url += `&param_date_scr_created=${dateScrCreated || ""}`;
-
-  return buildLinkTag(url, linkText || LINK_TEXT.RIDE_VIEWER);
-}
-
-// Generates a clickable link to the RideViewer report (embedded version)
-// Same as getRideViewerLink but creates an embeddable link with cache control
-// embedId: Max age for embed cache (defaults to 999999999)
-function getRideViewerLinkEmbed(
-  secretKey,
-  rideId,
-  scheduledRideId,
-  dateRequested,
-  dateScrCreated,
   linkText = LINK_TEXT.RIDE_VIEWER,
+  isEmbeddedLink = false,
   embedId = 999999999
 ) {
   const maxAge = embedId || 999999999;
-  let url = `${URLS.RIDE_VIEWER}/embed?max_age=${maxAge}&`;
+  let url = isEmbeddedLink
+    ? `${URLS.RIDE_VIEWER}/embed?max_age=${maxAge}&`
+    : `${URLS.RIDE_VIEWER}?`;
   url += `param_ride_id=${rideId || ""}`;
   url += `&param_scheduled_ride_id=${scheduledRideId || ""}`;
   url += `&param_date_requested=${dateRequested || ""}`;
@@ -338,38 +295,27 @@ function getMatchCycleInfoLink(
   return buildLinkTag(url, linkText || LINK_TEXT.MATCH_CYCLE_INFO);
 }
 
-// Generates a link to the Assignment Group Viewer (regular version)
+// Generates a link to the Assignment Group Viewer
 // Shows information about a group of driver assignments
 // secretKey: Encryption key
 // dateString: Date string (YYYY-MM-DD format)
 // assignmentGroupId: The assignment group ID
 // linkText: Text to display (defaults to "ASGViewer")
+// isEmbeddedLink: If true, generates an embedded link with max_age parameter (defaults to false)
+// embedId: Max age for embed cache (defaults to 999999999, only used if isEmbeddedLink is true)
 // Returns: HTML anchor tag
 function getAssignmentGroupViewerLink(
   secretKey,
   dateString,
   assignmentGroupId,
-  linkText = LINK_TEXT.ASSIGNMENT_GROUP_VIEWER
-) {
-  let url = `${URLS.ASSIGNMENT_GROUP_VIEWER}?`;
-  url += `param_ds=${dateString}`;
-  url += `&param_assignment_group_id=${assignmentGroupId}`;
-
-  return buildLinkTag(url, linkText || LINK_TEXT.ASSIGNMENT_GROUP_VIEWER);
-}
-
-// Generates a link to the Assignment Group Viewer (embedded version)
-// Same as getAssignmentGroupViewerLink but creates an embeddable link
-// embedId: Max age for embed cache (defaults to 999999999)
-function getAssignmentGroupViewerLinkEmbed(
-  secretKey,
-  dateString,
-  assignmentGroupId,
   linkText = LINK_TEXT.ASSIGNMENT_GROUP_VIEWER,
+  isEmbeddedLink = false,
   embedId = 999999999
 ) {
   const maxAge = embedId || 999999999;
-  let url = `${URLS.ASSIGNMENT_GROUP_VIEWER}/embed?max_age=${maxAge}&`;
+  let url = isEmbeddedLink
+    ? `${URLS.ASSIGNMENT_GROUP_VIEWER}/embed?max_age=${maxAge}&`
+    : `${URLS.ASSIGNMENT_GROUP_VIEWER}?`;
   url += `param_ds=${dateString}`;
   url += `&param_assignment_group_id=${assignmentGroupId}`;
 
