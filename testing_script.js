@@ -40,6 +40,15 @@ function buildLinkTag(url, linkText) {
   return `<a href="${url}" rel="noopener noreferrer" target="_blank">${linkText}</a>`;
 }
 
+// Generates a clickable link to Google Maps for a specific location
+// lat: Latitude coordinate
+// lng: Longitude coordinate
+// Returns: HTML anchor tag with link to Google Maps showing the coordinates
+function getGoogleMapLink(lat, lng) {
+  const url = `https://www.google.com/maps/place/${lat},${lng}`;
+  return buildLinkTag(url, `${lat}, ${lng}`);
+}
+
 // Validates that all required queries executed successfully
 // requiredQueryNames: Array of query names that must have data (e.g., ["Query 1", "Query 2"])
 // Returns: List of status objects { queryName, statusMessage, statusClass, succeeded }
