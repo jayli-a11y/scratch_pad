@@ -121,6 +121,7 @@ function validateDatasets(requiredQueryNames, showQueryStatusInHTML = true ) {
   if (showQueryStatusInHTML) {
     _addQueryResultsToHtml(statuses)
   }
+  console.log(statuses);
   return statuses.every(function (status) {
     return status.succeeded;
   });
