@@ -1,0 +1,610 @@
+// TODO: this can be removed
+// Decrypts an AES-encrypted string using CryptoJS
+// secretKey: The password/key used to decrypt (usually "RyoSecretKey")
+// ciphertext: The encrypted string (base64 encoded)
+// Returns: The decrypted plaintext as a UTF-8 string
+// Plain URL bases and default link texts (decrypted)
+
+
+
+// TODO: replace these constant reading with reading values from the dataset shared common
+
+const URLS = {
+  DRIVER_VIEWER: "https://app.mode.com/lyft/reports/b504c0f33d20",
+  RIDE_VIEWER: "https://app.mode.com/lyft/reports/7324be106ba6",
+  PLAN_GEN_INFO: "https://app.mode.com/lyft/reports/9ab5afd393d9",
+  MATCH_CYCLE_INFO: "https://app.mode.com/lyft/reports/2e037237701c",
+  ASSIGNMENT_GROUP_VIEWER: "https://app.mode.com/lyft/reports/805293112700",
+  PLAN_VIEWER: "https://app.mode.com/lyft/reports/55b64d4f5292/embed?max_age=999999999",
+  PLAN_VIEWER_V2: "https://app.mode.com/lyft/reports/e376ae8855db/embed?max_age=999999999",
+  SCORE_DIFF: "https://app.mode.com/lyft/reports/a05a4797647d?",
+  ROW_VIEWER: "https://app.mode.com/lyft/reports/cee187d0547b",
+  AIRPORT_QUEUE_VIEWER: "https://app.mode.com/lyft/reports/8a67e9183d07",
+  RIDER_SESSION_VIEWER: "https://app.mode.com/lyft/reports/72c161b42d37",
+  TOM_SCHEDULED_RIDE: "https://tom.lyft.net/scheduled-rides/",
+  TOM_REPLAY_RIDE: "https://tom.lyft.net/replay/ride/",
+  TOM_REPLAY_CYCLE: "https://tom.lyft.net/replay/cycle/",
+  TOM_USER: "https://tom.lyft.net/users/",
+};
+
+const LINK_TEXT = {
+  DRIVER_VIEWER: "DriverViewer",
+  RIDE_VIEWER: "RideViewer",
+  PLAN_GEN_INFO: "PlanGenInfo+",
+  MATCH_CYCLE_INFO: "MatchCycleInfo",
+  ASSIGNMENT_GROUP_VIEWER: "ASGViewer",
+  PLAN_VIEWER: "PlanViewer",
+  PLAN_VIEWER_V2: "PlanViewerV2",
+  SCORE_DIFF: "ScoreDiff",
+  ROW_VIEWER: "RowViewer",
+  AIRPORT_QUEUE_VIEWER: "AirportQueueViewer",
+  RIDER_SESSION_VIEWER: "RiderSessionViewer",
+  TOM_SCHEDULED_RIDE: "details",
+  TOM_REPLAY: "Replay",
+  TOM_LINK: "TOM",
+};
+
+function buildLinkTag(url, linkText) {
+  return `<a href="${url}" rel="noopener noreferrer" target="_blank">${linkText}</a>`;
+}
+
+// Validates that all required queries executed successfully
+// requiredQueryNames: Array of query names that must have data (e.g., ["Query 1", "Query 2"])
+// Returns: List of status objects { queryName, statusMessage, statusClass, succeeded }
+function _getQueryResultStatuses(requiredQueryNames) {
+  return datasets
+    .slice()
+    .sort(function (queryA, queryB) {
+      return queryA.queryName.localeCompare(queryB.queryName);
+    })
+    .map(function (queryDataset) {
+      let statusMessage = "Succeeded",
+        statusClass = "query_succeeded",
+        succeeded = true;
+
+      if ("succeeded" !== queryDataset.state) {
+        succeeded = false;
+        statusMessage = "Failed";
+        statusClass = "query_failed";
+      } else if (
+        requiredQueryNames.includes(queryDataset.queryName) &&
+        0 === queryDataset.count
+      ) {
+        succeeded = false;
+        statusMessage = "Succeeded but returned no row";
+        statusClass = "query_empty";
+      }
+
+      return {
+        queryName: queryDataset.queryName,
+        statusMessage: statusMessage,
+        statusClass: statusClass,
+        succeeded: succeeded,
+      };
+    });
+}
+
+// Updates the loadingdiv element to show query status
+// statusList: List of status objects returned by _getQueryResultStatuses
+// Returns: true if all queries succeeded, false otherwise
+function _addQueryResultsToHtml(statusList) {
+  let queryStateHtml = "Query state:<ul>",
+    allQueriesSucceeded = true;
+
+  statusList.forEach(function (statusEntry) {
+    if (!statusEntry.succeeded) {
+      allQueriesSucceeded = false;
+    }
+    queryStateHtml +=
+      "<li>" +
+      statusEntry.queryName +
+      ": " +
+      getElem("span", statusEntry.statusMessage, [statusEntry.statusClass]).outerHTML +
+      "</li>";
+  });
+
+  queryStateHtml += "</ul>";
+  document.getElementById("loadingdiv").innerHTML = getElem("div", queryStateHtml, [
+    "queryState",
+  ]).outerHTML;
+
+  return allQueriesSucceeded;
+}
+
+// Validates that all required queries executed successfully before showing the report
+// requiredQueryNames: Array of query names that must have data (e.g., ["Query 1", "Query 2"])
+// Returns: true if all queries succeeded AND required queries have data, false otherwise
+// Also updates the loadingdiv element to show query status (succeeded/failed/empty)
+function validateDatasets(requiredQueryNames, showQueryStatusInHTML = true ) {
+  var statuses = _getQueryResultStatuses(requiredQueryNames);
+  if (showQueryStatusInHTML) {
+    _addQueryResultsToHtml(statuses)
+  }
+  return statuses.every(function (status) {
+    return status.succeeded;
+  });
+}
+
+// Finds and returns a query result from the datasets array by name
+// queryName: The name of the query to find (e.g., "Query 1", "Query 2 Id")
+// Returns: The query dataset object, or null if not found/empty
+// Logs an error if the query exists but has no content
+function readQuery(queryName) {
+  let queryResult = datasets.find(function (dataset) {
+    return dataset.queryName === queryName;
+  });
+  
+  if (queryResult && queryResult.content.length > 0) {
+    return queryResult;
+  }
+  
+  //todo: have central way to signal errors among all functions
+  if (queryResult && queryResult.content.length === 0) {
+    console.log("ERROR: Empty data. Query: " + queryName);
+  }
+  
+  return queryResult; // Returns null if not found, or the empty dataset if found but empty
+}
+
+// Creates a DOM element with text content and CSS classes
+// tagName: HTML tag name (e.g., "div", "span", "th")
+// innerHTML: The text/content to put inside the element
+// cssClasses: Array of CSS class names to add (e.g., ["queryState", "m_golden_path"])
+// Returns: The created DOM element
+function getElem(tagName, innerHTML, cssClasses) {
+  var element = document.createElement(tagName);
+  return ((element.innerHTML = innerHTML), element.classList.add(...cssClasses), element);
+}
+
+// Generates a clickable link to the DriverViewer report (regular version, not embedded)
+// secretKey: Encryption key (usually "RyoSecretKey")
+// driverId: The driver's Lyft ID
+// dateStart: Start date filter (YYYY-MM-DD format)
+// timeStart: Start time filter (HH:mm format, optional)
+// dateEnd: End date filter (YYYY-MM-DD format, optional)
+// timeEnd: End time filter (HH:mm format, optional)
+// experiment: Experiment ID filter (optional)
+// linkText: Text to display in the link (defaults to "DriverViewer" if not provided)
+// Returns: HTML anchor tag with link to DriverViewer report
+function getDriverViewerLink(
+  secretKey,
+  driverId,
+  dateStart,
+  timeStart,
+  dateEnd,
+  timeEnd,
+  experiment,
+  linkText = LINK_TEXT.DRIVER_VIEWER
+) {
+  let url = `${URLS.DRIVER_VIEWER}?`;
+  url += `param_driver_id=${driverId}`;
+  url += `&param_date_start=${dateStart}`;
+  url += `&param_time_start=${timeStart || ""}`;
+  url += `&param_date_end=${dateEnd || ""}`;
+  url += `&param_time_end=${timeEnd || ""}`;
+  url += `&param_experiment=${experiment || ""}`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.DRIVER_VIEWER);
+}
+
+// Generates a clickable link to the DriverViewer report (embedded version)
+// Same parameters as getDriverViewerLink, plus:
+// embedId: Max age for embed cache (defaults to 999999999 = very long cache)
+// Returns: HTML anchor tag with embedded link to DriverViewer report
+function getDriverViewerLinkEmbed(
+  secretKey,
+  driverId,
+  dateStart,
+  timeStart,
+  dateEnd,
+  timeEnd,
+  experiment,
+  linkText = LINK_TEXT.DRIVER_VIEWER,
+  embedId = 999999999
+) {
+  const maxAge = embedId || 999999999;
+  let url = `${URLS.DRIVER_VIEWER}/embed?max_age=${maxAge}&`;
+  url += `param_driver_id=${driverId}`;
+  url += `&param_date_start=${dateStart}`;
+  url += `&param_time_start=${timeStart || ""}`;
+  url += `&param_date_end=${dateEnd || ""}`;
+  url += `&param_time_end=${timeEnd || ""}`;
+  url += `&param_experiment=${experiment || ""}`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.DRIVER_VIEWER);
+}
+
+// Generates a clickable link to the RideViewer report (regular version)
+// secretKey: Encryption key
+// rideId: The ride's ID
+// scheduledRideId: The scheduled ride ID (if it was pre-scheduled, optional)
+// dateRequested: When the ride was requested (YYYY-MM-DD format)
+// dateScrCreated: When the scheduled ride was created (YYYY-MM-DD format, optional)
+// linkText: Text to display (defaults to "RideViewer")
+// Returns: HTML anchor tag linking to RideViewer report
+function getRideViewerLink(
+  secretKey,
+  rideId,
+  scheduledRideId,
+  dateRequested,
+  dateScrCreated,
+  linkText = LINK_TEXT.RIDE_VIEWER
+) {
+  let url = `${URLS.RIDE_VIEWER}?`;
+  url += `param_ride_id=${rideId || ""}`;
+  url += `&param_scheduled_ride_id=${scheduledRideId || ""}`;
+  url += `&param_date_requested=${dateRequested || ""}`;
+  url += `&param_date_scr_created=${dateScrCreated || ""}`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.RIDE_VIEWER);
+}
+
+// Generates a clickable link to the RideViewer report (embedded version)
+// Same as getRideViewerLink but creates an embeddable link with cache control
+// embedId: Max age for embed cache (defaults to 999999999)
+function getRideViewerLinkEmbed(
+  secretKey,
+  rideId,
+  scheduledRideId,
+  dateRequested,
+  dateScrCreated,
+  linkText = LINK_TEXT.RIDE_VIEWER,
+  embedId = 999999999
+) {
+  const maxAge = embedId || 999999999;
+  let url = `${URLS.RIDE_VIEWER}/embed?max_age=${maxAge}&`;
+  url += `param_ride_id=${rideId || ""}`;
+  url += `&param_scheduled_ride_id=${scheduledRideId || ""}`;
+  url += `&param_date_requested=${dateRequested || ""}`;
+  url += `&param_date_scr_created=${dateScrCreated || ""}`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.RIDE_VIEWER);
+}
+
+// Generates a link to the Plan Generation Info viewer
+// This shows information about dispatch plan generation for a specific time window
+// secretKey: Encryption key
+// region: The region code (e.g., "NYC", "CHI")
+// eventTime: The event timestamp (moment.js UTC object or ISO string)
+// minutesOffset: How many minutes to add/subtract from eventTime to get the cycle time
+// windowMinutes: How long the time window is (defaults to 5 if not provided)
+// rideId: Optional ride ID filter
+// scheduledRideId: Optional scheduled ride ID filter
+// jobId2: Optional second job ID (used as param_job_id2)
+// linkText: Optional link text (defaults to signature if not provided)
+// signature: Optional signature parameter (defaults to decrypted value)
+// Returns: HTML anchor tag linking to PlanGenInfo+ report
+// The URL points to: https://app.mode.com/lyft/reports/9ab5afd393d9
+function getPlanGenInfoLink(
+  secretKey,
+  region,
+  eventTime,
+  minutesOffset,
+  windowMinutes,
+  rideId,
+  scheduledRideId,
+  jobId2,
+  linkText,
+  signature = LINK_TEXT.PLAN_GEN_INFO
+) {
+  let url = `${URLS.PLAN_GEN_INFO}?`;
+
+  const cycleTime = moment.utc(eventTime).add(minutesOffset, "minutes");
+  const cycleDate = cycleTime.format("YYYY-MM-DD");
+  const cycleHourMin = cycleTime.format("HH:mm");
+  windowMinutes || (windowMinutes = 5);
+
+  url += `param_region=${region}`;
+  url += `&param_cycle_date=${cycleDate}`;
+  url += `&param_hourmin=${cycleHourMin}`;
+  url += `&param_minute_length=${windowMinutes}`;
+  url += `&param_supply_id=${rideId || ""}`;
+  url += `&param_job_id1=${scheduledRideId || ""}`;
+  url += `&param_job_id2=${jobId2 || ""}`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.PLAN_GEN_INFO);
+}
+
+// Generates a link to the Match Cycle Info viewer
+// Shows information about a specific matching cycle (when drivers were matched to rides)
+// secretKey: Encryption key
+// region: Region code
+// eventTime: When the matching cycle occurred
+// cycleId: The cycle ID (identifies which matching cycle)
+// rideId: Optional ride ID filter
+// linkText: Text to display (defaults to "MatchCycleInfo")
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/2e037237701c
+// The cycleLogPath points to an S3 path with format: match-cycle-log/YYYY/MM/DD/HH/mm/region/cycleId.gz
+function getMatchCycleInfoLink(
+  secretKey,
+  region,
+  eventTime,
+  cycleId,
+  rideId,
+  linkText = LINK_TEXT.MATCH_CYCLE_INFO
+) {
+  const cycleLogPath = `match-cycle-log/${moment
+    .utc(eventTime)
+    .format("YYYY/MM/DD/HH/mm")}/${region}/${cycleId}.gz`;
+
+  let url = `${URLS.MATCH_CYCLE_INFO}?param_region=${region}`;
+  url += `&param_cycle_log_s3_path=${encodeURIComponent(cycleLogPath)}`;
+  url += `&param_job_id1=${rideId}`;
+  url += `&param_status=All`;
+  url += `&param_supply_id=`;
+  url += `&param_job_id2=`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.MATCH_CYCLE_INFO);
+}
+
+// Generates a link to the Assignment Group Viewer (regular version)
+// Shows information about a group of driver assignments
+// secretKey: Encryption key
+// dateString: Date string (YYYY-MM-DD format)
+// assignmentGroupId: The assignment group ID
+// linkText: Text to display (defaults to "ASGViewer")
+// Returns: HTML anchor tag
+function getAssignmentGroupViewerLink(
+  secretKey,
+  dateString,
+  assignmentGroupId,
+  linkText = LINK_TEXT.ASSIGNMENT_GROUP_VIEWER
+) {
+  let url = `${URLS.ASSIGNMENT_GROUP_VIEWER}?`;
+  url += `param_ds=${dateString}`;
+  url += `&param_assignment_group_id=${assignmentGroupId}`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.ASSIGNMENT_GROUP_VIEWER);
+}
+
+// Generates a link to the Assignment Group Viewer (embedded version)
+// Same as getAssignmentGroupViewerLink but creates an embeddable link
+// embedId: Max age for embed cache (defaults to 999999999)
+function getAssignmentGroupViewerLinkEmbed(
+  secretKey,
+  dateString,
+  assignmentGroupId,
+  linkText = LINK_TEXT.ASSIGNMENT_GROUP_VIEWER,
+  embedId = 999999999
+) {
+  const maxAge = embedId || 999999999;
+  let url = `${URLS.ASSIGNMENT_GROUP_VIEWER}/embed?max_age=${maxAge}&`;
+  url += `param_ds=${dateString}`;
+  url += `&param_assignment_group_id=${assignmentGroupId}`;
+
+  return buildLinkTag(url, linkText || LINK_TEXT.ASSIGNMENT_GROUP_VIEWER);
+}
+
+// Generates a link to the PlanViewer report (shows dispatch plans)
+// Shows the dispatch plan/option that was chosen for a specific cycle
+// secretKey: Encryption key
+// dispatchOptionId: The dispatch option/plan ID
+// dateString: Date string (YYYY-MM-DD format)
+// cycleId: The matching cycle ID
+// region: Region code
+// driverId: Driver ID (optional)
+// hour: Hour of the day (0-23)
+// linkText: Text to display (defaults to "PlanViewer")
+// signature: Optional signature parameter
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/55b64d4f5292/embed?max_age=999999999
+function getPlanViewerLink(
+  secretKey,
+  dispatchOptionId,
+  dateString,
+  cycleId,
+  region,
+  driverId,
+  hour,
+  linkText = LINK_TEXT.PLAN_VIEWER,
+  signature = LINK_TEXT.PLAN_VIEWER
+) {
+  let url = `${URLS.PLAN_VIEWER}&param_dispatch_option_id=${dispatchOptionId}`;
+  url += `&param_ds=${dateString}`;
+  url += `&param_cycle_id=${cycleId}`;
+  url += `&param_region=${region}`;
+  url += `&param_supply_id=${driverId}`;
+  url += `&param_hr=${hour}`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.PLAN_VIEWER);
+}
+
+// Generates a link to PlanViewer V2 (newer version of PlanViewer)
+// Similar to getPlanViewerLink but uses a different report ID
+// secretKey: Encryption key
+// dispatchOptionId: The dispatch option/plan ID
+// linkText: Text to display (defaults to "PlanViewerV2")
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/e376ae8855db/embed?max_age=999999999
+function getPlanViewerV2Link(
+  secretKey,
+  dispatchOptionId,
+  linkText = LINK_TEXT.PLAN_VIEWER_V2
+) {
+  let url = `${URLS.PLAN_VIEWER_V2}&param_dispatch_option_id=${dispatchOptionId}`;
+  return buildLinkTag(url, linkText || LINK_TEXT.PLAN_VIEWER_V2);
+}
+
+// Generates a link to the Score Difference viewer
+// Shows how different dispatch options were scored during matching
+// secretKey: Encryption key
+// dateString: Date string (YYYY-MM-DD format)
+// region: Region code
+// cycleId: The matching cycle ID
+// dispatchOptionId: The dispatch option ID to compare
+// hour: Hour of the day (0-23)
+// linkText: Text to display (defaults to "ScoreDiff")
+// signature: Optional signature parameter
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/a05a4797647d?
+function getScoreDiffLink(
+  secretKey,
+  dateString,
+  region,
+  cycleId,
+  dispatchOptionId,
+  hour,
+  linkText = LINK_TEXT.SCORE_DIFF,
+  signature = LINK_TEXT.SCORE_DIFF
+) {
+  let url = `${URLS.SCORE_DIFF}param_ds=${dateString}`;
+  url += `&param_region=${region}`;
+  url += `&param_cycle_id=${cycleId}`;
+  url += `&param_dispatch_option_id=${dispatchOptionId}`;
+  url += `&param_hr=${hour}`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.SCORE_DIFF);
+}
+
+// Generates a link to the RowViewer report
+// Shows details about a specific event row in the events table
+// secretKey: Encryption key
+// eventName: The event name (e.g., "ride_requested", "matching_assignment_v2")
+// eventId: The event ID (primary key for the event)
+// dateString: Date string (YYYY-MM-DD format)
+// hour: Hour of the day (0-23)
+// linkText: Text to display (defaults to "RowViewer")
+// signature: Optional signature parameter
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/cee187d0547b
+// The table parameter points to: hive.events.event_{eventName}
+function getRowViewerLink(
+  secretKey,
+  eventName,
+  eventId,
+  dateString,
+  hour,
+  linkText = LINK_TEXT.ROW_VIEWER,
+  signature = LINK_TEXT.ROW_VIEWER
+) {
+  let url = `${URLS.ROW_VIEWER}?param_table=hive.events.event_${eventName}`;
+  url += `&param_ds=${dateString}`;
+  url += `&param_id_column_name=event_id`;
+  url += `&param_id=${eventId}`;
+  url += `&param_id_column_name2=hr`;
+  url += `&param_id2=${hour}`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.ROW_VIEWER);
+}
+
+// Generates a link to the Airport Queue Viewer report
+// Shows information about airport queue management
+// secretKey: Encryption key
+// region: Region code
+// dateString: Date string (YYYY-MM-DD format)
+// cycleId: The matching cycle ID
+// queueName: Name of the airport queue
+// linkText: Text to display (defaults to "AirportQueueViewer")
+// signature: Optional signature parameter
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/8a67e9183d07
+function getAirportQueueViewerLink(
+  secretKey,
+  region,
+  dateString,
+  cycleId,
+  queueName,
+  linkText = LINK_TEXT.AIRPORT_QUEUE_VIEWER,
+  signature = LINK_TEXT.AIRPORT_QUEUE_VIEWER
+) {
+  let url = `${URLS.AIRPORT_QUEUE_VIEWER}?param_region=${region}`;
+  url += `&param_ds=${dateString}`;
+  url += `&param_cycle_id=${cycleId}`;
+  url += `&param_queue_name=${queueName}`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.AIRPORT_QUEUE_VIEWER);
+}
+
+// Generates a link to the Rider Session Viewer report
+// Shows information about a rider's session (their app usage)
+// secretKey: Encryption key
+// sessionId: The rider session ID
+// dateString: Date string (YYYY-MM-DD format) - note: this is often offset by +100 days from event time
+// linkText: Text to display (defaults to "RiderSessionViewer")
+// signature: Optional signature parameter
+// Returns: HTML anchor tag
+// The URL points to: https://app.mode.com/lyft/reports/72c161b42d37
+function getRiderSessionViewerLink(
+  secretKey,
+  sessionId,
+  dateString,
+  linkText = LINK_TEXT.RIDER_SESSION_VIEWER,
+  signature = LINK_TEXT.RIDER_SESSION_VIEWER
+) {
+  let url = `${URLS.RIDER_SESSION_VIEWER}?param_session_id=${sessionId}`;
+  url += `&param_ds=${dateString}`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.RIDER_SESSION_VIEWER);
+}
+
+// Generates a link to TOM (Tool for Operations Management) scheduled ride viewer
+// This links to an external tool (tom.lyft.net), not a Mode report
+// secretKey: Encryption key
+// scheduledRideId: The scheduled ride ID
+// linkText: Text to display (defaults to "details")
+// Returns: HTML anchor tag
+// The URL points to: https://tom.lyft.net/scheduled-rides/{scheduledRideId}
+function getScheduledRideLink(
+  secretKey,
+  scheduledRideId,
+  linkText = LINK_TEXT.TOM_SCHEDULED_RIDE
+) {
+  const url = `${URLS.TOM_SCHEDULED_RIDE}${scheduledRideId}`;
+  return buildLinkTag(url, linkText || LINK_TEXT.TOM_SCHEDULED_RIDE);
+}
+
+// Generates a link to TOM replay viewer for a ride
+// Shows a replay/visualization of what happened during a ride
+// secretKey: Encryption key
+// rideId: The ride ID
+// linkText: Text to display (defaults to "Replay")
+// Returns: HTML anchor tag
+// The URL points to: https://tom.lyft.net/replay/ride/{rideId}
+function getReplayForRideLink(
+  secretKey,
+  rideId,
+  linkText = LINK_TEXT.TOM_REPLAY
+) {
+  const url = `${URLS.TOM_REPLAY_RIDE}${rideId}`;
+  return buildLinkTag(url, linkText || LINK_TEXT.TOM_REPLAY);
+}
+
+// Generates a link to TOM replay viewer for an assignment group
+// Shows a replay of what happened during a matching cycle/assignment group
+// secretKey: Encryption key
+// assignmentGroupId: The assignment group ID
+// dateString: Date string (YYYY-MM-DD format)
+// linkText: Text to display (defaults to "Replay")
+// signature: Optional signature parameter
+// Returns: HTML anchor tag
+// The URL points to: https://tom.lyft.net/replay/cycle/assignmentGroup/{assignmentGroupId}?activeTab=Details
+function getReplayForAssignmentGroupLink(
+  secretKey,
+  assignmentGroupId,
+  dateString,
+  linkText = LINK_TEXT.TOM_REPLAY,
+  signature = LINK_TEXT.TOM_REPLAY
+) {
+  let url = `${URLS.TOM_REPLAY_CYCLE}${assignmentGroupId}`;
+  url += `/assignmentGroup/${dateString}`;
+  url += `?activeTab=Details`;
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.TOM_REPLAY);
+}
+
+// Generates a link to TOM user viewer
+// Shows information about a user (rider or driver) in TOM
+// secretKey: Encryption key
+// userId: The user ID
+// linkText: Text to display (defaults to "TOM")
+// Returns: HTML anchor tag
+// The URL points to: https://tom.lyft.net/users/{userId}
+function getTomUserLink(
+  secretKey,
+  userId,
+  linkText = LINK_TEXT.TOM_LINK
+) {
+  const url = `${URLS.TOM_USER}${userId}`;
+  return buildLinkTag(url, linkText || LINK_TEXT.TOM_LINK);
+}
