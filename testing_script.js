@@ -149,7 +149,6 @@ function getElem(tagName, innerHTML, cssClasses) {
 }
 
 // Generates a clickable link to the DriverViewer report
-// secretKey: Encryption key (usually "RyoSecretKey")
 // driverId: The driver's Lyft ID
 // dateStart: Start date filter (YYYY-MM-DD format)
 // timeStart: Start time filter (HH:mm format, optional)
@@ -161,7 +160,6 @@ function getElem(tagName, innerHTML, cssClasses) {
 // embedId: Max age for embed cache (defaults to 999999999, only used if isEmbeddedLink is true)
 // Returns: HTML anchor tag with link to DriverViewer report
 function getDriverViewerLink(
-  secretKey,
   driverId,
   dateStart,
   timeStart,
@@ -187,7 +185,6 @@ function getDriverViewerLink(
 }
 
 // Generates a clickable link to the RideViewer report
-// secretKey: Encryption key
 // rideId: The ride's ID
 // scheduledRideId: The scheduled ride ID (if it was pre-scheduled, optional)
 // dateRequested: When the ride was requested (YYYY-MM-DD format)
@@ -197,7 +194,6 @@ function getDriverViewerLink(
 // embedId: Max age for embed cache (defaults to 999999999, only used if isEmbeddedLink is true)
 // Returns: HTML anchor tag linking to RideViewer report
 function getRideViewerLink(
-  secretKey,
   rideId,
   scheduledRideId,
   dateRequested,
@@ -220,7 +216,6 @@ function getRideViewerLink(
 
 // Generates a link to the Plan Generation Info viewer
 // This shows information about dispatch plan generation for a specific time window
-// secretKey: Encryption key
 // region: The region code (e.g., "NYC", "CHI")
 // eventTime: The event timestamp (moment.js UTC object or ISO string)
 // minutesOffset: How many minutes to add/subtract from eventTime to get the cycle time
@@ -229,11 +224,10 @@ function getRideViewerLink(
 // scheduledRideId: Optional scheduled ride ID filter
 // jobId2: Optional second job ID (used as param_job_id2)
 // linkText: Optional link text (defaults to signature if not provided)
-// signature: Optional signature parameter (defaults to decrypted value)
+// signature: Optional signature/fallback link text (defaults to "PlanGenInfo+")
 // Returns: HTML anchor tag linking to PlanGenInfo+ report
 // The URL points to: https://app.mode.com/lyft/reports/9ab5afd393d9
 function getPlanGenInfoLink(
-  secretKey,
   region,
   eventTime,
   minutesOffset,
@@ -264,7 +258,6 @@ function getPlanGenInfoLink(
 
 // Generates a link to the Match Cycle Info viewer
 // Shows information about a specific matching cycle (when drivers were matched to rides)
-// secretKey: Encryption key
 // region: Region code
 // eventTime: When the matching cycle occurred
 // cycleId: The cycle ID (identifies which matching cycle)
@@ -274,7 +267,6 @@ function getPlanGenInfoLink(
 // The URL points to: https://app.mode.com/lyft/reports/2e037237701c
 // The cycleLogPath points to an S3 path with format: match-cycle-log/YYYY/MM/DD/HH/mm/region/cycleId.gz
 function getMatchCycleInfoLink(
-  secretKey,
   region,
   eventTime,
   cycleId,
@@ -297,7 +289,6 @@ function getMatchCycleInfoLink(
 
 // Generates a link to the Assignment Group Viewer
 // Shows information about a group of driver assignments
-// secretKey: Encryption key
 // dateString: Date string (YYYY-MM-DD format)
 // assignmentGroupId: The assignment group ID
 // linkText: Text to display (defaults to "ASGViewer")
@@ -305,7 +296,6 @@ function getMatchCycleInfoLink(
 // embedId: Max age for embed cache (defaults to 999999999, only used if isEmbeddedLink is true)
 // Returns: HTML anchor tag
 function getAssignmentGroupViewerLink(
-  secretKey,
   dateString,
   assignmentGroupId,
   linkText = LINK_TEXT.ASSIGNMENT_GROUP_VIEWER,
@@ -324,26 +314,24 @@ function getAssignmentGroupViewerLink(
 
 // Generates a link to the PlanViewer report (shows dispatch plans)
 // Shows the dispatch plan/option that was chosen for a specific cycle
-// secretKey: Encryption key
 // dispatchOptionId: The dispatch option/plan ID
 // dateString: Date string (YYYY-MM-DD format)
 // cycleId: The matching cycle ID
 // region: Region code
 // driverId: Driver ID (optional)
 // hour: Hour of the day (0-23)
-// linkText: Text to display (defaults to "PlanViewer")
-// signature: Optional signature parameter
+// linkText: Text to display (defaults to signature if not provided)
+// signature: Optional signature/fallback link text (defaults to "PlanViewer")
 // Returns: HTML anchor tag
 // The URL points to: https://app.mode.com/lyft/reports/55b64d4f5292/embed?max_age=999999999
 function getPlanViewerLink(
-  secretKey,
   dispatchOptionId,
   dateString,
   cycleId,
   region,
   driverId,
   hour,
-  linkText = LINK_TEXT.PLAN_VIEWER,
+  linkText,
   signature = LINK_TEXT.PLAN_VIEWER
 ) {
   let url = `${URLS.PLAN_VIEWER}&param_dispatch_option_id=${dispatchOptionId}`;
@@ -358,13 +346,11 @@ function getPlanViewerLink(
 
 // Generates a link to PlanViewer V2 (newer version of PlanViewer)
 // Similar to getPlanViewerLink but uses a different report ID
-// secretKey: Encryption key
 // dispatchOptionId: The dispatch option/plan ID
 // linkText: Text to display (defaults to "PlanViewerV2")
 // Returns: HTML anchor tag
 // The URL points to: https://app.mode.com/lyft/reports/e376ae8855db/embed?max_age=999999999
 function getPlanViewerV2Link(
-  secretKey,
   dispatchOptionId,
   linkText = LINK_TEXT.PLAN_VIEWER_V2
 ) {
@@ -374,24 +360,22 @@ function getPlanViewerV2Link(
 
 // Generates a link to the Score Difference viewer
 // Shows how different dispatch options were scored during matching
-// secretKey: Encryption key
 // dateString: Date string (YYYY-MM-DD format)
 // region: Region code
 // cycleId: The matching cycle ID
 // dispatchOptionId: The dispatch option ID to compare
 // hour: Hour of the day (0-23)
-// linkText: Text to display (defaults to "ScoreDiff")
-// signature: Optional signature parameter
+// linkText: Text to display (defaults to signature if not provided)
+// signature: Optional signature/fallback link text (defaults to "ScoreDiff")
 // Returns: HTML anchor tag
 // The URL points to: https://app.mode.com/lyft/reports/a05a4797647d?
 function getScoreDiffLink(
-  secretKey,
   dateString,
   region,
   cycleId,
   dispatchOptionId,
   hour,
-  linkText = LINK_TEXT.SCORE_DIFF,
+  linkText,
   signature = LINK_TEXT.SCORE_DIFF
 ) {
   let url = `${URLS.SCORE_DIFF}param_ds=${dateString}`;
@@ -405,23 +389,21 @@ function getScoreDiffLink(
 
 // Generates a link to the RowViewer report
 // Shows details about a specific event row in the events table
-// secretKey: Encryption key
 // eventName: The event name (e.g., "ride_requested", "matching_assignment_v2")
 // eventId: The event ID (primary key for the event)
 // dateString: Date string (YYYY-MM-DD format)
 // hour: Hour of the day (0-23)
-// linkText: Text to display (defaults to "RowViewer")
-// signature: Optional signature parameter
+// linkText: Text to display (defaults to signature if not provided)
+// signature: Optional signature/fallback link text (defaults to "RowViewer")
 // Returns: HTML anchor tag
 // The URL points to: https://app.mode.com/lyft/reports/cee187d0547b
 // The table parameter points to: hive.events.event_{eventName}
 function getRowViewerLink(
-  secretKey,
   eventName,
   eventId,
   dateString,
   hour,
-  linkText = LINK_TEXT.ROW_VIEWER,
+  linkText,
   signature = LINK_TEXT.ROW_VIEWER
 ) {
   let url = `${URLS.ROW_VIEWER}?param_table=hive.events.event_${eventName}`;
@@ -436,22 +418,20 @@ function getRowViewerLink(
 
 // Generates a link to the Airport Queue Viewer report
 // Shows information about airport queue management
-// secretKey: Encryption key
 // region: Region code
 // dateString: Date string (YYYY-MM-DD format)
 // cycleId: The matching cycle ID
 // queueName: Name of the airport queue
-// linkText: Text to display (defaults to "AirportQueueViewer")
-// signature: Optional signature parameter
+// linkText: Text to display (defaults to signature if not provided)
+// signature: Optional signature/fallback link text (defaults to "AirportQueueViewer")
 // Returns: HTML anchor tag
 // The URL points to: https://app.mode.com/lyft/reports/8a67e9183d07
 function getAirportQueueViewerLink(
-  secretKey,
   region,
   dateString,
   cycleId,
   queueName,
-  linkText = LINK_TEXT.AIRPORT_QUEUE_VIEWER,
+  linkText,
   signature = LINK_TEXT.AIRPORT_QUEUE_VIEWER
 ) {
   let url = `${URLS.AIRPORT_QUEUE_VIEWER}?param_region=${region}`;
@@ -464,18 +444,16 @@ function getAirportQueueViewerLink(
 
 // Generates a link to the Rider Session Viewer report
 // Shows information about a rider's session (their app usage)
-// secretKey: Encryption key
 // sessionId: The rider session ID
 // dateString: Date string (YYYY-MM-DD format) - note: this is often offset by +100 days from event time
-// linkText: Text to display (defaults to "RiderSessionViewer")
-// signature: Optional signature parameter
+// linkText: Text to display (defaults to signature if not provided)
+// signature: Optional signature/fallback link text (defaults to "RiderSessionViewer")
 // Returns: HTML anchor tag
 // The URL points to: https://app.mode.com/lyft/reports/72c161b42d37
 function getRiderSessionViewerLink(
-  secretKey,
   sessionId,
   dateString,
-  linkText = LINK_TEXT.RIDER_SESSION_VIEWER,
+  linkText,
   signature = LINK_TEXT.RIDER_SESSION_VIEWER
 ) {
   let url = `${URLS.RIDER_SESSION_VIEWER}?param_session_id=${sessionId}`;
@@ -486,13 +464,11 @@ function getRiderSessionViewerLink(
 
 // Generates a link to TOM (Tool for Operations Management) scheduled ride viewer
 // This links to an external tool (tom.lyft.net), not a Mode report
-// secretKey: Encryption key
 // scheduledRideId: The scheduled ride ID
 // linkText: Text to display (defaults to "details")
 // Returns: HTML anchor tag
 // The URL points to: https://tom.lyft.net/scheduled-rides/{scheduledRideId}
 function getScheduledRideLink(
-  secretKey,
   scheduledRideId,
   linkText = LINK_TEXT.TOM_SCHEDULED_RIDE
 ) {
@@ -502,13 +478,11 @@ function getScheduledRideLink(
 
 // Generates a link to TOM replay viewer for a ride
 // Shows a replay/visualization of what happened during a ride
-// secretKey: Encryption key
 // rideId: The ride ID
 // linkText: Text to display (defaults to "Replay")
 // Returns: HTML anchor tag
 // The URL points to: https://tom.lyft.net/replay/ride/{rideId}
 function getReplayForRideLink(
-  secretKey,
   rideId,
   linkText = LINK_TEXT.TOM_REPLAY
 ) {
@@ -518,18 +492,16 @@ function getReplayForRideLink(
 
 // Generates a link to TOM replay viewer for an assignment group
 // Shows a replay of what happened during a matching cycle/assignment group
-// secretKey: Encryption key
 // assignmentGroupId: The assignment group ID
 // dateString: Date string (YYYY-MM-DD format)
-// linkText: Text to display (defaults to "Replay")
-// signature: Optional signature parameter
+// linkText: Text to display (defaults to signature if not provided)
+// signature: Optional signature/fallback link text (defaults to "Replay")
 // Returns: HTML anchor tag
 // The URL points to: https://tom.lyft.net/replay/cycle/assignmentGroup/{assignmentGroupId}?activeTab=Details
 function getReplayForAssignmentGroupLink(
-  secretKey,
   assignmentGroupId,
   dateString,
-  linkText = LINK_TEXT.TOM_REPLAY,
+  linkText,
   signature = LINK_TEXT.TOM_REPLAY
 ) {
   let url = `${URLS.TOM_REPLAY_CYCLE}${assignmentGroupId}`;
@@ -541,13 +513,11 @@ function getReplayForAssignmentGroupLink(
 
 // Generates a link to TOM user viewer
 // Shows information about a user (rider or driver) in TOM
-// secretKey: Encryption key
 // userId: The user ID
 // linkText: Text to display (defaults to "TOM")
 // Returns: HTML anchor tag
 // The URL points to: https://tom.lyft.net/users/{userId}
 function getTomUserLink(
-  secretKey,
   userId,
   linkText = LINK_TEXT.TOM_LINK
 ) {
