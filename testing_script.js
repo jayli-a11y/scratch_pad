@@ -577,6 +577,19 @@ function getReplayForAssignmentGroupLink(
   return buildLinkTag(url, linkText || signature || LINK_TEXT.TOM_REPLAY);
 }
 
+// Generates a link to TOM replay viewer for a cycle id
+// cycleId: The cycle ID
+// linkText: Text to display (defaults to "Replay")
+// Returns: HTML anchor tag
+// The URL points to: https://tom.lyft.net/replay/cycle/{cycleId}
+function getReplayForCycleLink(
+  cycleId,
+  linkText = LINK_TEXT.TOM_REPLAY
+) {
+  const url = `${URLS.TOM_REPLAY_CYCLE}${cycleId}`;
+  return buildLinkTag(url, linkText || LINK_TEXT.TOM_REPLAY);
+}
+
 // Generates a link to TOM user viewer
 // Shows information about a user (rider or driver) in TOM
 // userId: The user ID
