@@ -454,32 +454,33 @@ function getScoreDiffLink(
 
 
 // Generates a link to the RowViewer report
-// Shows details about a specific event row in the events table
-// eventName: The event name (e.g., "ride_requested", "matching_assignment_v2")
-// eventId: The event ID (primary key for the event)
-// dateString: Date string (YYYY-MM-DD format)
-// hour: Hour of the day (0-23)
-// linkText: Text to display (defaults to signature if not provided)
-// signature: Optional signature/fallback link text (defaults to "RowViewer")
+// table: fully qualified table name (defaults to rider sessions)
+// idColumn: primary id column name (defaults to session_id)
+// id: primary id value
+// dateString: ds partition
+// hour: optional hour partition
+// hrColumn: hour column name (defaults to hr)
+// linkText: link label (defaults to RowViewer)
 // Returns: HTML anchor tag
-// The URL points to: https://app.mode.com/lyft/reports/cee187d0547b
-// The table parameter points to: hive.events.event_{eventName}
 function getRowViewerLink(
-  eventName,
-  eventId,
+  table = 'core.rider_sessions',
+  idColumn = 'session_id',
+  id,
   dateString,
   hour,
-  linkText,
-  signature = LINK_TEXT.ROW_VIEWER
+  hrColumn = 'hr',
+  linkText
 ) {
-  let url = `${URLS.ROW_VIEWER}?param_table=hive.events.event_${eventName}`;
-  url += `&param_ds=${dateString}`;
-  url += `&param_id_column_name=event_id`;
-  url += `&param_id=${eventId}`;
-  url += `&param_id_column_name2=hr`;
-  url += `&param_id2=${hour}`;
+  let url = `${URLS.ROW_VIEWER}?param_table=${encodeURIComponent(table)}`;
+  url += `&param_ds=${dateString || ''}`;
+  url += `&param_id_column_name=${idColumn}`;
+  url += `&param_id=${id ?? ''}`;
+  if (hour !== undefined && hour !== null) {
+    url += `&param_id_column_name2=${hrColumn}`;
+    url += `&param_id2=${hour}`;
+  }
 
-  return buildLinkTag(url, linkText || signature || LINK_TEXT.ROW_VIEWER);
+  return buildLinkTag(url, linkText || LINK_TEXT.ROW_VIEWER);
 }
 
 // Generates a link to the Airport Queue Viewer report
