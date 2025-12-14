@@ -296,9 +296,12 @@ function getMatchCycleInfoLink(
     return linkText || LINK_TEXT.MATCH_CYCLE_INFO;
   }
 
+  // Normalize cycleId (handle values like "84415049096465 MATCHING")
+  const normalizedCycleId = String(safeCycleId).trim().split(' ')[0].replace(/[^0-9]/g, '');
+
   const cycleLogPath = `match-cycle-log/${moment
     .utc(eventTime)
-    .format("YYYY/MM/DD/HH/mm")}/${safeRegion}/${safeCycleId}.gz`;
+    .format("YYYY/MM/DD/HH/mm")}/${safeRegion}/${normalizedCycleId}.gz`;
 
   let url = `${URLS.MATCH_CYCLE_INFO}?param_region=${region}`;
   url += `&param_cycle_log_s3_path=${encodeURIComponent(cycleLogPath)}`;
