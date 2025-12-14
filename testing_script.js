@@ -27,7 +27,7 @@ const LINK_TEXT = {
   MATCH_CYCLE_INFO: "MatchCycleInfo",
   ASSIGNMENT_GROUP_VIEWER: "ASGViewer",
   PLAN_VIEWER: "PlanViewer",
-  PLAN_VIEWER_V2: "PlanViewerV2",
+  PLAN_VIEWER_V2: "PlanViewerV2", 
   SCORE_TREE: "ScoreTree",
   SCORE_DIFF: "ScoreDiff",
   ROW_VIEWER: "RowViewer",
@@ -390,9 +390,15 @@ function getScoreTreeLink(
   hour,
   configString,
   linkText,
-  signature = LINK_TEXT.SCORE_TREE
+  signature = LINK_TEXT.SCORE_TREE,
+  isEmbeddedLink = false,
+  embedId = 999999999
 ) {
-  let url = `${URLS.SCORE_TREE}param_ds=${dateString}`;
+  const baseUrl = isEmbeddedLink
+    ? `${URLS.SCORE_TREE.replace(/\?$/, "")}/embed?max_age=${embedId || 999999999}&`
+    : URLS.SCORE_TREE;
+
+  let url = `${baseUrl}param_ds=${dateString}`;
   url += `&param_region=${region}`;
   url += `&param_cycle_id=${cycleId}`;
   url += `&param_dispatch_option_id=${dispatchOptionId}`;
@@ -406,7 +412,7 @@ function getScoreTreeLink(
   return buildLinkTag(url, linkText || signature || LINK_TEXT.SCORE_TREE);
 }
 
-// Backward compatibility: route ScoreDiff requests to Score Tree
+// Backward compatibility: keep the old ScoreDiff API but route to ScoreTree
 function getScoreDiffLink(
   dateString,
   region,
@@ -414,7 +420,9 @@ function getScoreDiffLink(
   dispatchOptionId,
   hour,
   linkText,
-  signature = LINK_TEXT.SCORE_TREE
+  signature = LINK_TEXT.SCORE_TREE,
+  isEmbeddedLink = false,
+  embedId = 999999999
 ) {
   return getScoreTreeLink(
     dateString,
@@ -424,9 +432,12 @@ function getScoreDiffLink(
     hour,
     /*configString=*/ undefined,
     linkText,
-    signature
+    signature,
+    isEmbeddedLink,
+    embedId
   );
 }
+
 
 // Generates a link to the RowViewer report
 // Shows details about a specific event row in the events table
