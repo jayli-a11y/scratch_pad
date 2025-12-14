@@ -9,6 +9,7 @@ const URLS = {
   ASSIGNMENT_GROUP_VIEWER: "https://app.mode.com/lyft/reports/805293112700",
   PLAN_VIEWER: "https://app.mode.com/lyft/reports/55b64d4f5292/embed?max_age=999999999",
   PLAN_VIEWER_V2: "https://app.mode.com/lyft/reports/e376ae8855db/embed?max_age=999999999",
+  SCORE_TREE: "https://app.mode.com/lyft/reports/b9322ad7c7aa?",
   SCORE_DIFF: "https://app.mode.com/lyft/reports/a05a4797647d?",
   ROW_VIEWER: "https://app.mode.com/lyft/reports/cee187d0547b",
   AIRPORT_QUEUE_VIEWER: "https://app.mode.com/lyft/reports/8a67e9183d07",
@@ -27,6 +28,7 @@ const LINK_TEXT = {
   ASSIGNMENT_GROUP_VIEWER: "ASGViewer",
   PLAN_VIEWER: "PlanViewer",
   PLAN_VIEWER_V2: "PlanViewerV2",
+  SCORE_TREE: "ScoreTree",
   SCORE_DIFF: "ScoreDiff",
   ROW_VIEWER: "RowViewer",
   AIRPORT_QUEUE_VIEWER: "AirportQueueViewer",
@@ -368,17 +370,43 @@ function getPlanViewerV2Link(
   return buildLinkTag(url, linkText || LINK_TEXT.PLAN_VIEWER_V2);
 }
 
-// Generates a link to the Score Difference viewer
-// Shows how different dispatch options were scored during matching
+// Generates a link to the Score Tree viewer
+// Shows the score_tree breakdown for a dispatch option
 // dateString: Date string (YYYY-MM-DD format)
 // region: Region code
 // cycleId: The matching cycle ID
 // dispatchOptionId: The dispatch option ID to compare
 // hour: Hour of the day (0-23)
+// configString: Optional base64 config string to pre-set view state
 // linkText: Text to display (defaults to signature if not provided)
-// signature: Optional signature/fallback link text (defaults to "ScoreDiff")
+// signature: Optional signature/fallback link text (defaults to "ScoreTree")
 // Returns: HTML anchor tag
-// The URL points to: https://app.mode.com/lyft/reports/a05a4797647d?
+// The URL points to: https://app.mode.com/lyft/reports/b9322ad7c7aa?
+function getScoreTreeLink(
+  dateString,
+  region,
+  cycleId,
+  dispatchOptionId,
+  hour,
+  configString,
+  linkText,
+  signature = LINK_TEXT.SCORE_TREE
+) {
+  let url = `${URLS.SCORE_TREE}param_ds=${dateString}`;
+  url += `&param_region=${region}`;
+  url += `&param_cycle_id=${cycleId}`;
+  url += `&param_dispatch_option_id=${dispatchOptionId}`;
+  if (hour !== undefined && hour !== null) {
+    url += `&param_hr=${hour}`;
+  }
+  if (configString) {
+    url += `&param_config=${configString}`;
+  }
+
+  return buildLinkTag(url, linkText || signature || LINK_TEXT.SCORE_TREE);
+}
+
+// Backward compatibility: route ScoreDiff requests to Score Tree
 function getScoreDiffLink(
   dateString,
   region,
@@ -386,15 +414,18 @@ function getScoreDiffLink(
   dispatchOptionId,
   hour,
   linkText,
-  signature = LINK_TEXT.SCORE_DIFF
+  signature = LINK_TEXT.SCORE_TREE
 ) {
-  let url = `${URLS.SCORE_DIFF}param_ds=${dateString}`;
-  url += `&param_region=${region}`;
-  url += `&param_cycle_id=${cycleId}`;
-  url += `&param_dispatch_option_id=${dispatchOptionId}`;
-  url += `&param_hr=${hour}`;
-
-  return buildLinkTag(url, linkText || signature || LINK_TEXT.SCORE_DIFF);
+  return getScoreTreeLink(
+    dateString,
+    region,
+    cycleId,
+    dispatchOptionId,
+    hour,
+    /*configString=*/ undefined,
+    linkText,
+    signature
+  );
 }
 
 // Generates a link to the RowViewer report
