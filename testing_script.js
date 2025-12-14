@@ -285,13 +285,24 @@ function getMatchCycleInfoLink(
   rideId,
   linkText = LINK_TEXT.MATCH_CYCLE_INFO
 ) {
+  const safeRegion = region || '';
+  const safeCycleId = cycleId || '';
+  const safeRideId = rideId || '';
+  const hasEventTime = Boolean(eventTime);
+  const hasRegion = Boolean(safeRegion);
+  const hasCycleId = Boolean(safeCycleId);
+
+  if (!hasEventTime || !hasRegion || !hasCycleId) {
+    return linkText || LINK_TEXT.MATCH_CYCLE_INFO;
+  }
+
   const cycleLogPath = `match-cycle-log/${moment
     .utc(eventTime)
-    .format("YYYY/MM/DD/HH/mm")}/${region}/${cycleId}.gz`;
+    .format("YYYY/MM/DD/HH/mm")}/${safeRegion}/${safeCycleId}.gz`;
 
   let url = `${URLS.MATCH_CYCLE_INFO}?param_region=${region}`;
   url += `&param_cycle_log_s3_path=${encodeURIComponent(cycleLogPath)}`;
-  url += `&param_job_id1=${rideId}`;
+  url += `&param_job_id1=${safeRideId}`;
   url += `&param_status=All`;
   url += `&param_supply_id=`;
   url += `&param_job_id2=`;
