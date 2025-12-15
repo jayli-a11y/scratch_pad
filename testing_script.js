@@ -9,8 +9,8 @@ const URLS = {
   ASSIGNMENT_GROUP_VIEWER: "https://app.mode.com/lyft/reports/805293112700",
   PLAN_VIEWER: "https://app.mode.com/lyft/reports/55b64d4f5292",
   PLAN_VIEWER_V2: "https://app.mode.com/lyft/reports/e376ae8855db",
-  SCORE_TREE: "https://app.mode.com/lyft/reports/b9322ad7c7aa?",
-  SCORE_DIFF: "https://app.mode.com/lyft/reports/a05a4797647d?",
+  SCORE_TREE: "https://app.mode.com/lyft/reports/b9322ad7c7aa",
+  SCORE_DIFF: "https://app.mode.com/lyft/reports/a05a4797647d",
   ROW_VIEWER: "https://app.mode.com/lyft/reports/cee187d0547b",
   AIRPORT_QUEUE_VIEWER: "https://app.mode.com/lyft/reports/8a67e9183d07",
   RIDER_SESSION_VIEWER: "https://app.mode.com/lyft/reports/72c161b42d37",
@@ -410,7 +410,7 @@ function getPlanViewerV2Link(
 // linkText: Text to display (defaults to signature if not provided)
 // signature: Optional signature/fallback link text (defaults to "ScoreTree")
 // Returns: HTML anchor tag
-// The URL points to: https://app.mode.com/lyft/reports/b9322ad7c7aa?
+// The URL points to: https://app.mode.com/lyft/reports/b9322ad7c7aa
 function getScoreTreeLink(
   dateString,
   region,
@@ -424,8 +424,8 @@ function getScoreTreeLink(
   embedId = 999999999
 ) {
   const baseUrl = isEmbeddedLink
-    ? `${URLS.SCORE_TREE.replace(/\?$/, "")}/embed?max_age=${embedId || 999999999}&`
-    : URLS.SCORE_TREE;
+    ? `${URLS.SCORE_TREE}/embed?max_age=${embedId || 999999999}&`
+    : `${URLS.SCORE_TREE}?`;
 
   let url = `${baseUrl}param_ds=${dateString}`;
   url += `&param_region=${region}`;
@@ -619,6 +619,3 @@ function getTomUserLink(
   const url = `${URLS.TOM_USER}${userId}`;
   return buildLinkTag(url, linkText || LINK_TEXT.TOM_LINK);
 }
-
-const tt1 = 1;
-
