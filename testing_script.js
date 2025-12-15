@@ -7,8 +7,8 @@ const URLS = {
   PLAN_GEN_INFO: "https://app.mode.com/lyft/reports/9ab5afd393d9",
   MATCH_CYCLE_INFO: "https://app.mode.com/lyft/reports/2e037237701c",
   ASSIGNMENT_GROUP_VIEWER: "https://app.mode.com/lyft/reports/805293112700",
-  PLAN_VIEWER: "https://app.mode.com/lyft/reports/55b64d4f5292/embed?max_age=999999999",
-  PLAN_VIEWER_V2: "https://app.mode.com/lyft/reports/e376ae8855db/embed?max_age=999999999",
+  PLAN_VIEWER: "https://app.mode.com/lyft/reports/55b64d4f5292",
+  PLAN_VIEWER_V2: "https://app.mode.com/lyft/reports/e376ae8855db",
   SCORE_TREE: "https://app.mode.com/lyft/reports/b9322ad7c7aa?",
   SCORE_DIFF: "https://app.mode.com/lyft/reports/a05a4797647d?",
   ROW_VIEWER: "https://app.mode.com/lyft/reports/cee187d0547b",
@@ -348,8 +348,10 @@ function getAssignmentGroupViewerLink(
 // hour: Hour of the day (0-23)
 // linkText: Text to display (defaults to signature if not provided)
 // signature: Optional signature/fallback link text (defaults to "PlanViewer")
+// isEmbeddedLink: If true, generate embed URL with max_age
+// embedId: Max age value for embed (defaults to 999999999)
 // Returns: HTML anchor tag
-// The URL points to: https://app.mode.com/lyft/reports/55b64d4f5292/embed?max_age=999999999
+// The base URL points to: https://app.mode.com/lyft/reports/55b64d4f5292
 function getPlanViewerLink(
   dispatchOptionId,
   dateString,
@@ -358,9 +360,15 @@ function getPlanViewerLink(
   driverId,
   hour,
   linkText,
-  signature = LINK_TEXT.PLAN_VIEWER
+  signature = LINK_TEXT.PLAN_VIEWER,
+  isEmbeddedLink = false,
+  embedId = 999999999
 ) {
-  let url = `${URLS.PLAN_VIEWER}&param_dispatch_option_id=${dispatchOptionId}`;
+  const baseUrl = isEmbeddedLink
+    ? `${URLS.PLAN_VIEWER}/embed?max_age=${embedId || 999999999}&`
+    : `${URLS.PLAN_VIEWER}?`;
+
+  let url = `${baseUrl}param_dispatch_option_id=${dispatchOptionId}`;
   url += `&param_ds=${dateString}`;
   url += `&param_cycle_id=${cycleId}`;
   url += `&param_region=${region}`;
@@ -374,13 +382,20 @@ function getPlanViewerLink(
 // Similar to getPlanViewerLink but uses a different report ID
 // dispatchOptionId: The dispatch option/plan ID
 // linkText: Text to display (defaults to "PlanViewerV2")
+// isEmbeddedLink: If true, generate embed URL with max_age
+// embedId: Max age value for embed (defaults to 999999999)
 // Returns: HTML anchor tag
-// The URL points to: https://app.mode.com/lyft/reports/e376ae8855db/embed?max_age=999999999
+// The base URL points to: https://app.mode.com/lyft/reports/e376ae8855db
 function getPlanViewerV2Link(
   dispatchOptionId,
-  linkText = LINK_TEXT.PLAN_VIEWER_V2
+  linkText = LINK_TEXT.PLAN_VIEWER_V2,
+  isEmbeddedLink = false,
+  embedId = 999999999
 ) {
-  let url = `${URLS.PLAN_VIEWER_V2}&param_dispatch_option_id=${dispatchOptionId}`;
+  const baseUrl = isEmbeddedLink
+    ? `${URLS.PLAN_VIEWER_V2}/embed?max_age=${embedId || 999999999}&`
+    : `${URLS.PLAN_VIEWER_V2}?`;
+  let url = `${baseUrl}param_dispatch_option_id=${dispatchOptionId}`;
   return buildLinkTag(url, linkText || LINK_TEXT.PLAN_VIEWER_V2);
 }
 
