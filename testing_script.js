@@ -378,30 +378,37 @@ function getScoreTreeLink(
   return buildLinkTag(url, linkText || signature || LINK_TEXT.SCORE_TREE);
 }
 
-// ScoreDiff link (backward compatibility - routes to ScoreTree)
+// ScoreDiff link (score breakdown for a dispatch option)
 function getScoreDiffLink(
   dateString,
   region,
   cycleId,
   dispatchOptionId,
   hour,
-  linkText,
-  signature = LINK_TEXT.SCORE_TREE,
+  configString,
+  linkText = LINK_TEXT.SCORE_DIFF,
   isEmbeddedLink = false,
   embedId = 999999999
 ) {
-  return getScoreTreeLink(
-    dateString,
-    region,
-    cycleId,
-    dispatchOptionId,
-    hour,
-    /*configString=*/ undefined,
-    linkText,
-    signature,
-    isEmbeddedLink,
-    embedId
-  );
+  const maxAge = embedId || 999999999;
+  const baseUrl = getLinkBaseUrl(LINK_KEYS.SCORE_DIFF);
+
+  let url = isEmbeddedLink
+    ? `${baseUrl}/embed?max_age=${maxAge}&`
+    : `${baseUrl}?`;
+
+  url += `param_ds=${dateString}`;
+  url += `&param_region=${region}`;
+  url += `&param_cycle_id=${cycleId}`;
+  url += `&param_dispatch_option_id=${dispatchOptionId}`;
+  if (hour !== undefined && hour !== null) {
+    url += `&param_hr=${hour}`;
+  }
+  if (configString) {
+    url += `&param_config=${configString}`;
+  }
+
+  return buildLinkTag(url, linkText || LINK_TEXT.SCORE_DIFF);
 }
 
 // RowViewer link (generic table row viewer)
